@@ -1,0 +1,54 @@
+<html>
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+  .state {
+    fill: #ccc;
+    stroke: #fff;
+  }
+
+  .symbol {
+    fill-opacity: .8;
+    stroke: #fff;
+  }
+</style>
+
+<body>
+  <!-- d3 v6 integration -->
+  <script src="https://d3js.org/d3.v6.min.js"></script>
+  <!-- d3 topojson -->
+  <script src="http://d3js.org/topojson.v1.min.js"></script>
+
+  <script>
+    let width = 960, height = 700;
+    var scale = 33350;
+
+    let projection = d3.geoMercator()
+      .translate([width / 0.16, height / 0.30])  
+      .scale([2700]);
+    let path = d3.geoPath()
+      .projection(projection);
+
+    let svg = d3.select("body").append("svg")
+      .attr("width", width)
+      .attr("height", height);
+
+    let california;
+
+    ready();
+
+    async function ready() {
+      california = await d3.json("california.geojson");
+
+       // draw the states
+       svg.append("path")
+        .attr("class", "state")
+        .data([california])
+        .attr("d", path);
+    }
+
+
+  </script>
+
+</body>
+</html>
