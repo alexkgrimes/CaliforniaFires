@@ -21,7 +21,6 @@
 
   <script>
     let width = 960, height = 700;
-    var scale = 33350;
 
     let projection = d3.geoMercator()
       .translate([width / 0.16, height / 0.31])  
@@ -29,9 +28,17 @@
     let path = d3.geoPath()
       .projection(projection);
 
-    let svg = d3.select("body").append("svg")
+    const zoom = d3.zoom()
+      .on('zoom', (event) => {
+        mapLayer.attr('transform', event.transform);
+      })
+      .scaleExtent([1, 40]);
+
+    let mapLayer = d3.select("body").append("svg")
       .attr("width", width)
-      .attr("height", height);
+      .attr("height", height)
+      .call(zoom)
+      .append("g");
 
     let california, fires;
 
@@ -42,12 +49,12 @@
       fires = await d3.csv("mapdataall.csv");
 
        // draw the state
-       svg.append("path")
+       mapLayer.append("path")
         .attr("class", "state")
         .data([california])
         .attr("d", path);
 
-      svg.selectAll(".symbol")
+        mapLayer.selectAll(".symbol")
         .data(fires)
         .enter().append("circle", ".symbol")
         .attr("r", 5)
@@ -55,6 +62,8 @@
         .attr("fill", "red")
         .attr("transform", d =>  "translate(" + projection([d.incident_longitude, d.incident_latitude]) + ")");
     }
+
+    
 
 
   </script>
