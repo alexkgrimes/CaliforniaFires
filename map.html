@@ -37,7 +37,7 @@
         return proj;
       }
     };
-    
+
     let path = d3.geoPath()
       .projection(projection);
 
@@ -54,20 +54,34 @@
       .append("g");
 
     let dataset, california, fires, minAcres, maxAcres;
-    let attributes = ["incident_acres_burned"];
+    let tooltip;
+    let attributes = ["incident_acres_burned", "year"];
 
     ready();
 
     async function ready() {
+
       california = await d3.json("california.geojson");
       fires = await d3.csv("mapdataall.csv");
       fires.forEach( d => {
         d.incident_acres_burned = +d.incident_acres_burned;
+        d.year = (d.incident_date_created).substring(0, 4);
         if (d.incident_acres_burned == 0) {
           d.incident_acres_burned = 1;
         }
       });
       dataset = fires;
+
+      // draw the state
+      mapLayer.append("path")
+        .attr("class", "state")
+        .data([california])
+        .attr("d", path);
+
+      // initialize tooltip
+      tooltip = d3.select("body").insert("div", "slider-range")
+        .attr("class", "tooltip")
+        .style("opacity", 0);    
 
       ranges = {};
       filter_query = [];
@@ -108,16 +122,9 @@
           }
         });
 
-        $( "#size" ).val( ranges.incident_acres_burned[0] + 
-                          " - " + 
-                          (ranges.incident_acres_burned[1] + max_buffer));
-      });
-
-      // draw the state
-      mapLayer.append("path")
-        .attr("class", "state")
-        .data([california])
-        .attr("d", path);
+        $( "#size" ).val( ranges.incident_acres_burned[0] + " - " + 
+                        (ranges.incident_acres_burned[1] + max_buffer));
+      });    
 
       drawVis(dataset)
     }
@@ -131,10 +138,27 @@
       map.exit().remove();
 
       map.enter().append("circle")
-        .attr("r", 5)
+        .attr("r", 4)
         .attr("fill-opacity", .5)
         .attr("fill", "red")
-        .attr("transform", d => "translate(" + projectionWrapper([d.incident_longitude, d.incident_latitude]) + ")");
+        .attr("transform", d => "translate(" + 
+                                projectionWrapper([d.incident_longitude, 
+                                                   d.incident_latitude]) + ")")
+        .on("mouseover", function (event, d, i) {
+          d3.select(this).attr("r", 8);
+          tooltip.transition()
+            .duration(200)
+            .style("opacity", 1);
+          tooltip.html("<b>" + d.incident_name + "</b>:<br>" + "Year: " + d.year + "<br>County: " + d.incident_county + "<br>" + "Acres: " + d.incident_acres_burned)
+            .style("left", (event.pageX + 5) + "px")
+            .style("top", (event.pageY - 28) + "px");
+        })
+        .on("mouseout", function (d, i) {
+          d3.select(this).attr("r", 4);
+          tooltip.transition()
+            .duration(500)
+            .style("opacity", 0.5);
+        });
     }
 
     function filterData(_attr, values) {
@@ -180,30 +204,37 @@
       return true;
     }
 
-    // function logslider(position) {
-    //   // position will be between 0 and 100
-    //   var minp = 0;
-    //   var maxp = 100;
-
-    //   // The result should be between 100 an 10000000
-    //   var minv = Math.log(100);
-    //   var maxv = Math.log(10000000);
-
-    //   // calculate adjustment factor
-    //   var scale = (maxv-minv) / (maxp-minp);
-
-    //   return Math.exp(minv + scale*(position-minp));
-    // }
-
     
   </script>
+
+  <p>
+    <label for="selection">Current selection:</label>
+  </p>
 
   <p>
     <label for="size">Acres burned:</label>
     <input type="text" id="size" readonly style="border:0; color:#f6931f; font-weight:bold;">
   </p>
- 
+
   <div id="slider-range"></div>
 
+  <p>
+    <label for="year">Year:</label>
+    <!-- <form id="myform"> -->
+      <label style="color: black"> 
+        <input type="checkbox" id="check1"> 2013
+      </label>
+
+      <label style="color: black"> 
+        <input type="checkbox" id="check2"> 2014
+      </label>
+      
+      <!-- <input type="checkbox" name="check1" value="check1"> -->
+      <!-- <label for="check1" style="float:right">2013</label> -->
+      <!-- <input type="checkbox" name="check2" value="check2"> -->
+   <!-- </form> -->
+  </p>
+  
+ 
 </body>
 </html>
