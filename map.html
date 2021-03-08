@@ -14,11 +14,14 @@
 </style>
 
 <body>
+  <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
   <!-- d3 v6 integration -->
   <script src="https://d3js.org/d3.v6.min.js"></script>
   <!-- d3 topojson -->
   <script src="http://d3js.org/topojson.v1.min.js"></script>
 
+  <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
   <script>
     let width = 960, height = 700;
 
@@ -40,33 +43,127 @@
       .call(zoom)
       .append("g");
 
-    let california, fires;
+    let dataset, california, fires, minAcres, maxAcres;
+    let attributes = ["incident_acres_burned"];
 
     ready();
 
     async function ready() {
       california = await d3.json("california.geojson");
       fires = await d3.csv("mapdataall.csv");
+      fires.forEach( d => {
+        d.incident_acres_burned = +d.incident_acres_burned;
+      });
+      dataset = fires;
 
-       // draw the state
-       mapLayer.append("path")
+      ranges = {};
+      filter_query = [];
+      for (let attr of attributes) {
+        let column = dataset.map(d => d[attr]);
+        ranges[attr] = [
+          d3.min(column),
+          d3.max(column)
+        ]
+        filter_query.push({
+          key: attr,
+          range: [ // deep copy
+            ranges[attr][0],
+            ranges[attr][1]
+          ]
+        })
+      }
+
+      $( function() {
+        $( "#slider-range" ).slider({
+          range: true,
+          min: ranges.incident_acres_burned[0],
+          max: ranges.incident_acres_burned[1],
+          values: ranges.incident_acres_burned,
+          slide: function( event, ui ) {
+            $( "#size" ).val( ui.values[ 0 ] + " - " + ui.values[ 1 ] );
+            filterData("incident_acres_burned", ui.values);
+          }
+        });
+        $( "#size" ).val( $( "#slider-range" ).slider( "values", 0 ) +
+          " - " + $( "#slider-range" ).slider( "values", 1 ) );
+      });
+
+      // draw the state
+      mapLayer.append("path")
         .attr("class", "state")
         .data([california])
         .attr("d", path);
 
-        mapLayer.selectAll(".symbol")
-        .data(fires)
-        .enter().append("circle", ".symbol")
+      drawVis(dataset)
+    }
+
+    function drawVis(dataset) { //draw the circiles initially and on each interaction with a control
+      // console.log(dataset);
+      let map = mapLayer.selectAll("circle")
+        .data(dataset, d => d.incident_id); // give it a key
+      
+      // filter out first
+      map.exit().remove();
+
+      map.enter().append("circle")
         .attr("r", 5)
         .attr("fill-opacity", .5)
         .attr("fill", "red")
-        .attr("transform", d =>  "translate(" + projection([d.incident_longitude, d.incident_latitude]) + ")");
+        .attr("transform", d => "translate(" + projection([d.incident_longitude, d.incident_latitude]) + ")");
+    }
+
+    function filterData(_attr, values) {
+      //update filter data
+      filter_query[_attr] = values;
+      // generating query
+      let query = []
+      for (let attr in filter_query) { // for simpler code, consider using underscore.js or equivalent.
+        let r = filter_query[attr];
+        if (r.constructor.name === "Array") {
+          // how you get datatype
+          // for a continous variable (filtered by array)
+          query.push({
+            key: attr,
+            range: r
+          })
+        } 
+      //   else if (r.constructor.name === "String" && !patt.test(r)) {
+      //     // for categorical variable, when it is "all", no query is generated
+      //     query.push({
+      //       key: attr,
+      //       value: r
+      //     })
+      //   }
+      }
+      let toVisualize = dataset.filter((d, i) => isQueried(d, query));
+      drawVis(toVisualize);
+    }
+
+    function isQueried(d, query) {
+      // if not in a range or not the value, return false; otherwise return true;
+      // query could be JSON, but Array tends to be more generic.
+      for (let i = 0; i < query.length; i++) {
+        let val = d[query[i].key]
+        if (query[i].hasOwnProperty("range")) {
+          if (query[i].range[0] > val || query[i].range[1] < val) {
+            return false;
+          }
+        } else if (query[i].hasOwnProperty("value")) {
+          if (query[i].value !== val) return false;
+        }
+      }
+      return true;
     }
 
     
-
-
   </script>
+
+  <p>
+    <label for="size">Acres burned:</label>
+    <input type="text" id="size" readonly style="border:0; color:#f6931f; font-weight:bold;">
+  </p>
+ 
+  <div id="slider-range"></div>
 
 </body>
 </html>
