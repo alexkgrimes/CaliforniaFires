@@ -28,6 +28,16 @@
     let projection = d3.geoMercator()
       .translate([width / 0.16, height / 0.31])  
       .scale([2700]);
+
+    let projectionWrapper = arr => {
+      let proj = projection(arr);
+      if (isNaN(proj[0]) || isNaN(proj[1])) {
+        return [-1, -1];
+      } else {
+        return proj;
+      }
+    };
+    
     let path = d3.geoPath()
       .projection(projection);
 
@@ -124,7 +134,7 @@
         .attr("r", 5)
         .attr("fill-opacity", .5)
         .attr("fill", "red")
-        .attr("transform", d => "translate(" + projection([d.incident_longitude, d.incident_latitude]) + ")");
+        .attr("transform", d => "translate(" + projectionWrapper([d.incident_longitude, d.incident_latitude]) + ")");
     }
 
     function filterData(_attr, values) {
