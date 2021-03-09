@@ -77,6 +77,8 @@
       let tooltip;
       let attributes = ["incident_acres_burned", "year"];
 
+      var mapAcreToArea= false;
+
       function isRange(attribute) {
         if (attribute == "incident_acres_burned") {
           return true;
@@ -92,6 +94,8 @@
         fires = await d3.csv("mapdataall.csv");
         fires.forEach((d) => {
           d.incident_acres_burned = +d.incident_acres_burned;
+          d.incident_longitude = +d.incident_longitude;
+          d.incident_latitude = +d.incident_latitude;
           d.year = d.incident_date_created.substring(0, 4);
           if (d.incident_acres_burned == 0) {
             d.incident_acres_burned = 1;
@@ -178,7 +182,7 @@
         $(function () {
           for (var value of years) {
             $("#year-checks")
-              .append(`<input class="year-check" type="checkbox" id="${value}" name="interest" value="${value}" checked>`)
+              .append(`<input class="year-check" type="checkbox" id="${value}" value="${value}" checked>`)
               .append(`<label for="${value}">${value}</label></div>`)
               .append(`<br>`);
           }
@@ -204,12 +208,27 @@
           });
         });
 
+        $(function () {
+            $("#acre-to-area")
+              .append(`<input class="acre-area-check" type="checkbox" id="acre-area-check">`)
+              .append(`<label for="acre-to-area">Map Acreage to Area</label></div>`)
+              .append(`<br>`);
+
+          $(".acre-area-check").change(function () {
+            if($(this).is(":checked")) {
+              mapAcreToArea = true;
+            } else {
+              mapAcreToArea = false;
+            }
+            updateMap();
+          });
+        });
+
         drawVis(dataset);
       }
 
       function drawVis(dataset) {
         //draw the circiles initially and on each interaction with a control
-        // console.log(dataset);
         let map = mapLayer
           .selectAll("circle")
           .data(dataset, (d) => d.incident_id); // give it a key
@@ -220,9 +239,14 @@
         map
           .enter()
           .append("circle")
-          .attr("r", 4)
           .attr("fill-opacity", 0.5)
           .attr("fill", "red")
+          .attr("r", d => { 
+          if (mapAcreToArea) {
+            return Math.sqrt(d.incident_acres_burned / 3.14) / 10;
+          } else {
+            return 4;
+          } })
           .attr(
             "transform",
             (d) =>
@@ -231,7 +255,7 @@
               ")"
           )
           .on("mouseover", function (event, d, i) {
-            d3.select(this).attr("r", 8);
+            d3.select(this).attr("fill-opacity", 1);
             tooltip.transition().duration(200).style("opacity", 1);
             tooltip
               .html(
@@ -250,9 +274,41 @@
               .style("top", event.pageY - 28 + "px");
           })
           .on("mouseout", function (d, i) {
-            d3.select(this).attr("r", 4);
+            d3.select(this).attr("fill-opacity", 0.5);
             tooltip.transition().duration(500).style("opacity", 0.5);
           });
+
+          map.attr("r", d => { 
+          if (mapAcreToArea) {
+            return Math.sqrt(d.incident_acres_burned / 3.14) / 10;
+          } else {
+            return 4;
+          } });
+      }
+
+      function updateMap() {
+        // generating query
+        let query = [];
+        for (let attr in filter_query) {
+          // for simpler code, consider using underscore.js or equivalent.
+          let r = filter_query[attr];
+          if (r.constructor.name === "Array" && isRange(attr)) {
+            // how you get datatype
+            // for a continous variable (filtered by array)
+            query.push({
+              key: attr,
+              range: r,
+            });
+          } else if (r.constructor.name === "Array") {
+              // for categorical variable, when it is "all", no query is generated
+              query.push({
+                key: attr,
+                values: r
+              })
+            }
+        }
+        let toVisualize = dataset.filter((d, i) => isQueried(d, query));
+        drawVis(toVisualize);
       }
 
       function filterData(_attr, values) {
@@ -318,14 +374,18 @@
 
       <div id="slider-range"></div>
       <p><br /></p>
-
-      
-
       <p>
         <label for="year">Year:</label>
         <div id="year-checks"></div>
 
       </p>
+
+      <label for="map-to-area">Map interactions:</label>
+      <p></p>
+        <div id="acre-to-area"></div>        
+      </p>
+      
+
     </div>
   </body>
 </html>
