@@ -19,6 +19,7 @@
 
     .info {
       float: left;
+      padding-left: 40px;
     }
   </style>
 
@@ -76,6 +77,14 @@
       let tooltip;
       let attributes = ["incident_acres_burned", "year"];
 
+      function isRange(attribute) {
+        if (attribute == "incident_acres_burned") {
+          return true;
+        } else {
+          return false;
+        }
+      }
+
       ready();
 
       async function ready() {
@@ -104,19 +113,28 @@
           .attr("class", "tooltip")
           .style("opacity", 0);
 
+        var years = d3.sort(new Set(dataset.map ( d => d.year )).values());
+
         ranges = {};
         filter_query = [];
         for (let attr of attributes) {
-          let column = dataset.map((d) => d[attr]);
-          ranges[attr] = [d3.min(column), d3.max(column)];
-          filter_query.push({
-            key: attr,
-            range: [
-              // deep copy
-              ranges[attr][0],
-              ranges[attr][1],
-            ],
-          });
+          if (!isRange(attr)) {
+            filter_query.push({
+              key: attr,
+              values: years,
+            })
+          } else {
+            let column = dataset.map((d) => d[attr]);
+            ranges[attr] = [d3.min(column), d3.max(column)];
+            filter_query.push({
+              key: attr,
+              range: [
+                // deep copy
+                ranges[attr][0],
+                ranges[attr][1],
+              ],
+            });
+          }
         }
 
         let range_start = 0;
@@ -155,6 +173,35 @@
               " - " +
               (ranges.incident_acres_burned[1] + max_buffer)
           );
+        });
+
+        $(function () {
+          for (var value of years) {
+            $("#year-checks")
+              .append(`<input class="year-check" type="checkbox" id="${value}" name="interest" value="${value}" checked>`)
+              .append(`<label for="${value}">${value}</label></div>`)
+              .append(`<br>`);
+          }
+          filter_query["years"] = years;
+
+          $(".year-check").change(function () {
+            if($(this).is(":checked")) {
+              var years = filter_query["years"];
+              if (!years.includes($(this).attr("id"))) {
+                years.push($(this).attr("id"));
+              }
+              filterData("years", years);
+            } else {
+              var years = filter_query["years"];
+              if (years.includes($(this).attr("id"))) {
+                const index = years.indexOf($(this).attr("id"));
+                if (index > -1) {
+                  years.splice(index, 1);
+                }
+              }
+              filterData("years", years);
+            }
+          });
         });
 
         drawVis(dataset);
@@ -216,21 +263,20 @@
         for (let attr in filter_query) {
           // for simpler code, consider using underscore.js or equivalent.
           let r = filter_query[attr];
-          if (r.constructor.name === "Array") {
+          if (r.constructor.name === "Array" && isRange(attr)) {
             // how you get datatype
             // for a continous variable (filtered by array)
             query.push({
               key: attr,
               range: r,
             });
-          }
-          //   else if (r.constructor.name === "String" && !patt.test(r)) {
-          //     // for categorical variable, when it is "all", no query is generated
-          //     query.push({
-          //       key: attr,
-          //       value: r
-          //     })
-          //   }
+          } else if (r.constructor.name === "Array") {
+              // for categorical variable, when it is "all", no query is generated
+              query.push({
+                key: attr,
+                values: r
+              })
+            }
         }
         let toVisualize = dataset.filter((d, i) => isQueried(d, query));
         drawVis(toVisualize);
@@ -239,23 +285,26 @@
       function isQueried(d, query) {
         // if not in a range or not the value, return false; otherwise return true;
         // query could be JSON, but Array tends to be more generic.
+        
         for (let i = 0; i < query.length; i++) {
           let val = d[query[i].key];
           if (query[i].hasOwnProperty("range")) {
             if (query[i].range[0] > val || query[i].range[1] < val) {
               return false;
             }
-          } else if (query[i].hasOwnProperty("value")) {
-            if (query[i].value !== val) return false;
+          } else if (query[i].hasOwnProperty("values")) {
+            // TODO
+            val = d.year;
+            if (!query[i].values.includes(val)) {
+              return false;
+            }
           }
         }
         return true;
       }
     </script>
     <div class="info">
-      <p class="current">
-        <!-- <label for="selection">Current selection:</label> -->
-      </p>
+      <p class="current"></p>
 
       <p>
         <label for="size">Acres burned:</label>
@@ -268,16 +317,14 @@
       </p>
 
       <div id="slider-range"></div>
+      <p><br /></p>
+
+      
 
       <p>
         <label for="year">Year:</label>
-        <label style="color: black">
-          <input type="checkbox" id="check1" /> 2013
-        </label>
+        <div id="year-checks"></div>
 
-        <label style="color: black">
-          <input type="checkbox" id="check2" /> 2014
-        </label>
       </p>
     </div>
   </body>
