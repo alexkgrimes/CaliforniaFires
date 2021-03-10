@@ -31,7 +31,7 @@
     <!-- d3 v6 integration -->
     <script src="https://d3js.org/d3.v6.min.js"></script>
     <!-- d3 topojson -->
-    <script src="http://d3js.org/topojson.v1.min.js"></script>
+    <script src="https://d3js.org/topojson.v1.min.js"></script>
 
     <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
@@ -73,7 +73,7 @@
         .call(zoom)
         .append("g");
 
-      let dataset, california, fires, minAcres, maxAcres;
+      let dataset, california, nevada, oregon, fires, minAcres, maxAcres;
       let tooltip;
       let attributes = ["incident_acres_burned", "year"];
 
@@ -90,7 +90,22 @@
       ready();
 
       async function ready() {
-        california = await d3.json("states.json");
+        california = await d3.json("CA.geojson");
+        nevada = await d3.json("NV.geojson");
+        oregon = await d3.json("OR.geojson");
+        arizona = await d3.json("AZ.geojson");
+        utah = await d3.json("UT.geojson");
+        idaho = await d3.json("ID.geojson");
+
+        states = [california, nevada, oregon, arizona, utah, idaho];
+        states.forEach((state) => {
+          mapLayer
+          .append("path")
+          .attr("class", "state")
+          .data([state])
+          .attr("d", path);
+        })
+
         fires = await d3.csv("mapdataall.csv");
         fires.forEach((d) => {
           d.incident_acres_burned = +d.incident_acres_burned;
@@ -102,13 +117,6 @@
           }
         });
         dataset = fires;
-
-        // draw the state
-        mapLayer
-          .append("path")
-          .attr("class", "state")
-          .datum(topojson.feature(california, california.objects.usStates))
-          .attr("d", path);
 
         // initialize tooltip
         tooltip = d3
@@ -240,12 +248,12 @@
           .enter()
           .append("circle")
           .attr("fill-opacity", 0.5)
-          .attr("fill", "red")
+          .attr("fill", "#ff5349")
           .attr("r", d => { 
           if (mapAcreToArea) {
             return Math.sqrt(d.incident_acres_burned / 3.14) / 10;
           } else {
-            return 4;
+            return 3;
           } })
           .attr(
             "transform",
@@ -282,7 +290,7 @@
           if (mapAcreToArea) {
             return Math.sqrt(d.incident_acres_burned / 3.14) / 10;
           } else {
-            return 4;
+            return 3;
           } });
       }
 
