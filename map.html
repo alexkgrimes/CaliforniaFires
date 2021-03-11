@@ -21,6 +21,18 @@
       float: left;
       padding-left: 40px;
     }
+
+    .foo {
+      float: left;
+      width: 15px;
+      height: 15px;
+      margin: 5px;
+      border: 1px solid rgba(0, 0, 0, .2);
+    }
+
+    .blue {
+      background: #13b4ff;
+    }
   </style>
 
   <body>
@@ -73,11 +85,12 @@
         .call(zoom)
         .append("g");
 
-      let dataset, california, nevada, oregon, fires;
+      let dataset, california, nevada, oregon, fires, colorScale;
       let tooltip;
       let attributes = ["incident_acres_burned", "year"];
 
       var mapAcreToArea= false;
+      var showColors = false;
 
       function isRange(attribute) {
         if (attribute == "incident_acres_burned") {
@@ -117,6 +130,8 @@
           }
         });
         dataset = fires;
+
+        colorScale = d3.scaleOrdinal(d3.schemeCategory10);
 
         // initialize tooltip
         tooltip = d3
@@ -192,7 +207,8 @@
             $("#year-checks")
               .append(`<input class="year-check" type="checkbox" id="${value}" value="${value}" checked>`)
               .append(`<label for="${value}">${value}</label></div>`)
-              .append(`<br>`);
+              .append(`<div class='foo' style='background:${colorScale(value)}'></div>`)
+              .append(`<br><br>`);
           }
           filter_query["years"] = years;
 
@@ -232,6 +248,22 @@
           });
         });
 
+        $(function () {
+            $("#year-to-color")
+              .append(`<input class="year-color-check" type="checkbox" id="year-color-check">`)
+              .append(`<label for="year-to-color">Map Year to Color</label></div>`)
+              .append(`<br>`);
+
+          $(".year-color-check").change(function () {
+            if($(this).is(":checked")) {
+              showColors = true;
+            } else {
+              showColors = false;
+            }
+            updateMap();
+          });
+        });
+
         drawVis(dataset);
       }
 
@@ -248,13 +280,8 @@
           .enter()
           .append("circle")
           .attr("fill-opacity", 0.5)
-          .attr("fill", "#ff5349")
-          .attr("r", d => { 
-          if (mapAcreToArea) {
-            return Math.sqrt(d.incident_acres_burned / 3.14) / 10;
-          } else {
-            return 3;
-          } })
+          .attr("fill", d => getColor(d))
+          .attr("r", d => getCircleRadius(d))
           .attr(
             "transform",
             (d) =>
@@ -286,20 +313,34 @@
             tooltip.transition().duration(500).style("opacity", 0.5);
           });
 
-        map.attr("r", d => { 
-        if (mapAcreToArea) {
-          return Math.sqrt(d.incident_acres_burned / 3.14) / 10;
-        } else {
-          return 3;
-        } });
+        map.attr("r", d => getCircleRadius(d))
+          .attr("fill", d => getColor(d));
 
         var years = d3.sort(new Set(dataset.map ( d => d.year )).values());
 
         $("#year-checks").children().map(function() {
           if (!years.includes(this.id)) {
             $(this).attr('disabled', this.checked);
+          } else {
+            $(this).removeAttr("disabled");
           }
         });
+      }
+
+      function getColor(d) {
+        if (showColors) {
+          return colorScale(d.year);
+        } else {
+          return "#ff5349";
+        }
+      }
+
+      function getCircleRadius(d) {
+        if (mapAcreToArea) {
+          return Math.sqrt(d.incident_acres_burned / 3.14) / 10;
+        } else {
+          return 3;
+        }
       }
 
       function updateMap() {
@@ -399,6 +440,9 @@
       <label for="map-to-area">Map interactions:</label>
       <p></p>
         <div id="acre-to-area"></div>        
+      </p>
+      <p></p>
+        <div id="year-to-color"></div>        
       </p>
       
 
