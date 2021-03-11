@@ -73,7 +73,7 @@
         .call(zoom)
         .append("g");
 
-      let dataset, california, nevada, oregon, fires, minAcres, maxAcres;
+      let dataset, california, nevada, oregon, fires;
       let tooltip;
       let attributes = ["incident_acres_burned", "year"];
 
@@ -178,7 +178,7 @@
                 acresLogScale.invert(ui.values[1]),
               ]);
             },
-          });
+        });
 
           $("#size").val(
             ranges.incident_acres_burned[0] +
@@ -286,12 +286,20 @@
             tooltip.transition().duration(500).style("opacity", 0.5);
           });
 
-          map.attr("r", d => { 
-          if (mapAcreToArea) {
-            return Math.sqrt(d.incident_acres_burned / 3.14) / 10;
-          } else {
-            return 3;
-          } });
+        map.attr("r", d => { 
+        if (mapAcreToArea) {
+          return Math.sqrt(d.incident_acres_burned / 3.14) / 10;
+        } else {
+          return 3;
+        } });
+
+        var years = d3.sort(new Set(dataset.map ( d => d.year )).values());
+
+        $("#year-checks").children().map(function() {
+          if (!years.includes(this.id)) {
+            $(this).attr('disabled', this.checked);
+          }
+        });
       }
 
       function updateMap() {
