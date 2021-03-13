@@ -22,6 +22,17 @@
       float: left;
     }
 
+    .city {
+      fill-opacity: 1;
+      stroke: #000;
+    }
+
+    .labels {
+      fill: #444;
+      font-family:arial;
+      font-size:0.7em;
+    }
+
     .info {
       font-family: Arial;
       float: left;
@@ -92,13 +103,14 @@
         .call(zoom)
         .append("g");
 
-      let dataset, california, nevada, oregon, fires, colorScale, counties;
+      let dataset, california, nevada, oregon, fires, colorScale, counties, cities;
       let tooltip;
       let attributes = ["incident_acres_burned", "year"];
 
       var mapAcreToArea= false;
       var showColors = false;
       var showCounties = false;
+      var showCities = false;
       var countiesHasChanged = false;
 
       function isRange(attribute) {
@@ -119,6 +131,7 @@
         utah = await d3.json("UT.geojson");
         idaho = await d3.json("ID.geojson");
         counties = await d3.json("us-county-boundaries.geojson");
+        cities = await d3.json("cities.json");
 
         states = [california, nevada, oregon, arizona, utah, idaho];
         states.forEach((state) => {
@@ -299,6 +312,22 @@
           });
         });
 
+        $(function () {
+            $("#show-cities")
+              .append(`<input class="show-cities-check" type="checkbox" id="show-cities-check">`)
+              .append(`<label for="show-cities-check">Show Major Cities</label></div>`)
+              .append(`<br>`);
+
+          $(".show-cities-check").change(function () {
+            if($(this).is(":checked")) {
+              showCities = true;
+            } else {
+              showCities = false;
+            }
+            updateMap();
+          });
+        });
+
         drawVis(dataset);
       }
 
@@ -311,13 +340,52 @@
               .append("path")
               .attr("class", "county")
               .data([county])
-              .attr("d", path);
+              .attr("d", path)
+              .append("svg:title").text(countyText);
             });
           } else {
             mapLayer.selectAll(".county").remove();
           }
           countiesHasChanged = false;
         }
+
+        mapLayer.selectAll(".city").raise();
+        mapLayer.selectAll(".labels").raise();
+        if (showCities) {
+          var symbolGenerator = d3.symbol()
+          .type(d3.symbolTriangle)
+          .size(8);
+
+          var pathData = symbolGenerator();
+
+          mapLayer.selectAll(".city")
+          .data(cities.cities)
+          .enter().append("path")
+          .attr('d', pathData)
+          .attr("class", "city")
+          .attr("r", 2)
+          .attr("transform", city =>
+              "translate(" + 
+              projection([city.longitude, city.latitude]) +
+              ")"
+          ).raise();
+
+          mapLayer.selectAll(".labels")
+            .data(cities.cities)
+            .enter().append("text")
+            .attr("class", "labels")
+            .text(function(d) { return d.name; })
+            .attr("x", function(d) {
+                return projection([d.longitude, d.latitude])[0];
+            })
+            .attr("y", function(d) {
+                return projection([d.longitude, d.latitude])[1];
+            }).raise();
+          } else {
+            mapLayer.selectAll(".city").remove();
+            mapLayer.selectAll(".labels").remove();
+          }
+        
 
         //draw the circiles initially and on each interaction with a control
         let map = mapLayer
@@ -404,6 +472,10 @@
         } else {
           return 2;
         }
+      }
+
+      var countyText = function(d) {
+        return d.properties.name;
       }
 
       function updateMap() {
@@ -509,6 +581,9 @@
       </p>
       <p></p>
         <div id="show-counties"></div>        
+      </p>
+      <p></p>
+        <div id="show-cities"></div>        
       </p>
       
 
