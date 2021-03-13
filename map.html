@@ -7,6 +7,11 @@
       stroke: #fff;
     }
 
+    .county {
+      fill: #ccc;
+      stroke: #fff;
+    }
+
     .symbol {
       fill-opacity: 0.5;
       stroke: #fff;
@@ -87,12 +92,14 @@
         .call(zoom)
         .append("g");
 
-      let dataset, california, nevada, oregon, fires, colorScale;
+      let dataset, california, nevada, oregon, fires, colorScale, counties;
       let tooltip;
       let attributes = ["incident_acres_burned", "year"];
 
       var mapAcreToArea= false;
       var showColors = false;
+      var showCounties = false;
+      var countiesHasChanged = false;
 
       function isRange(attribute) {
         if (attribute == "incident_acres_burned") {
@@ -111,6 +118,7 @@
         arizona = await d3.json("AZ.geojson");
         utah = await d3.json("UT.geojson");
         idaho = await d3.json("ID.geojson");
+        counties = await d3.json("us-county-boundaries.geojson");
 
         states = [california, nevada, oregon, arizona, utah, idaho];
         states.forEach((state) => {
@@ -269,14 +277,53 @@
           });
         });
 
+        $(function () {
+            $("#show-counties")
+              .append(`<input class="show-counties-check" type="checkbox" id="show-counties-check">`)
+              .append(`<label for="show-counties-check">Show Counties</label></div>`)
+              .append(`<br>`);
+
+          $(".show-counties-check").change(function () {
+            if($(this).is(":checked")) {
+              if (!showCounties) { 
+                countiesHasChanged = true; 
+              } 
+              showCounties = true;
+            } else {
+              if (showCounties) { 
+                countiesHasChanged = true; 
+              } 
+              showCounties = false;
+            }
+            updateMap();
+          });
+        });
+
         drawVis(dataset);
       }
 
       function drawVis(dataset) {
+
+        if (countiesHasChanged) {
+          if (showCounties) {
+            counties.features.forEach((county) => {
+              mapLayer
+              .append("path")
+              .attr("class", "county")
+              .data([county])
+              .attr("d", path);
+            });
+          } else {
+            mapLayer.selectAll(".county").remove();
+          }
+          countiesHasChanged = false;
+        }
+
         //draw the circiles initially and on each interaction with a control
         let map = mapLayer
           .selectAll("circle")
           .data(dataset, (d) => d.incident_id); // give it a key
+
 
         // filter out first
         map.exit().remove();
@@ -319,7 +366,8 @@
           });
 
         map.attr("r", d => getCircleRadius(d))
-          .attr("fill", d => getColor(d));
+          .attr("fill", d => getColor(d))
+          .raise();
 
         if (showColors) {
           d3
@@ -458,6 +506,9 @@
       </p>
       <p></p>
         <div id="year-to-color"></div>        
+      </p>
+      <p></p>
+        <div id="show-counties"></div>        
       </p>
       
 
