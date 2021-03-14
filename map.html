@@ -131,6 +131,9 @@
         utah = await d3.json("UT.geojson");
         idaho = await d3.json("ID.geojson");
         counties = await d3.json("us-county-boundaries.geojson");
+        counties.features.sort(function(x, y){
+          return d3.ascending(x.properties.name, y.properties.name);
+        })
         cities = await d3.json("cities.json");
 
         states = [california, nevada, oregon, arizona, utah, idaho];
@@ -150,6 +153,10 @@
           d.year = d.incident_date_created.substring(0, 4);
           if (d.incident_acres_burned == 0) {
             d.incident_acres_burned = 1;
+          }
+          d.incident_county = d.incident_county.split(',');
+          for (let i = 0; i < d.incident_county.length; i++) {
+            d.incident_county[i].trim();
           }
         });
         dataset = fires;
@@ -328,6 +335,22 @@
           });
         });
 
+        // var countyNames = counties.features.map (c => c.properties.name );
+        filter_query["incident_county"] = "All";
+
+        var s = $('<select />', {id: "d3-dropdown"});
+        $('<option />', {value: "All", text: "All"}).appendTo(s)
+        for (let c of counties.features) {
+          $('<option />', {value: c.properties.name, text: c.properties.name}).appendTo(s);
+        }
+        s.appendTo('#county-select');
+
+        d3.select("select")
+          .on("change",function(d){
+            var selected = d3.select("#d3-dropdown").node().value;
+            filterData("incident_county", selected);
+        })
+
         drawVis(dataset);
       }
 
@@ -410,7 +433,7 @@
               ")"
           )
           .on("mouseover", function (event, d, i) {
-            d3.select(this).attr("fill-opacity", 1);
+            d3.select(this).style("stroke", d =>  "#bf0000");
             tooltip.transition().duration(200).style("opacity", 1);
             tooltip
               .html(
@@ -429,13 +452,15 @@
               .style("top", event.pageY - 28 + "px");
           })
           .on("mouseout", function (d, i) {
-            d3.select(this).attr("fill-opacity", 0.5);
+            d3.select(this).style("stroke", d =>  "transparent");
             tooltip.transition().duration(500).style("opacity", 0.5);
           });
 
-        map.attr("r", d => getCircleRadius(d))
-          .attr("fill", d => getColor(d))
-          .raise();
+        map.raise();
+        map
+          .transition().duration(500)
+          .attr("r", d => getCircleRadius(d))
+          .attr("fill", d => getColor(d));
 
         if (showColors) {
           d3
@@ -492,12 +517,18 @@
               range: r,
             });
           } else if (r.constructor.name === "Array") {
-              // for categorical variable, when it is "all", no query is generated
-              query.push({
-                key: attr,
-                values: r
-              })
-            }
+            // for categorical variable, when it is "all", no query is generated
+            query.push({
+              key: attr,
+              values: r
+            })
+          } else if (r.constructor.name === "String" && r != "All") {
+            // for categorical variable, when it is "all", no query is generated
+            query.push({
+              key: attr,
+              values: r
+            })
+          }
         }
         let toVisualize = dataset.filter((d, i) => isQueried(d, query));
         drawVis(toVisualize);
@@ -519,12 +550,17 @@
               range: r,
             });
           } else if (r.constructor.name === "Array") {
-              // for categorical variable, when it is "all", no query is generated
-              query.push({
-                key: attr,
-                values: r
-              })
-            }
+            query.push({
+              key: attr,
+              values: r
+            })
+          } else if (r.constructor.name === "String" && r != "All") {
+            // for categorical variable, when it is "all", no query is generated
+            query.push({
+              key: attr,
+              values: r
+            })
+          }
         }
         let toVisualize = dataset.filter((d, i) => isQueried(d, query));
         drawVis(toVisualize);
@@ -541,11 +577,19 @@
               return false;
             }
           } else if (query[i].hasOwnProperty("values")) {
-            // TODO
-            val = d.year;
-            if (!query[i].values.includes(val)) {
-              return false;
+            if (query[i].key == "years") {
+              val = d.year;
+              if (!query[i].values.includes(val)) {
+                return false;
+              }
+            } 
+
+            if (query[i].key == "incident_county") {
+              if (!val.includes(query[i].values)) {
+                return false;
+              }
             }
+            
           }
         }
         return true;
@@ -555,7 +599,7 @@
       <p class="current"></p>
 
       <p>
-        <label for="size">Acres burned:</label>
+        <label for="size">Acres Burned:</label>
         <input
           type="text"
           id="size"
@@ -565,13 +609,15 @@
       </p>
 
       <div id="slider-range"></div>
+      <p></p>
+      <label>Select County:</label>
+      <div id="county-select"></div>
       <p><br /></p>
-      <p>
-        <label for="year">Year:</label>
-        <div id="year-checks"></div>
 
-      </p>
+      <label for="year">Year:</label>
+      <div id="year-checks"></div>
 
+      <p><br /></p>
       <label for="map-to-area">Map interactions:</label>
       <p></p>
         <div id="acre-to-area"></div>        
