@@ -40,6 +40,7 @@
 
     .info {
       font-family: Arial;
+      font-size: 0.9em;
       float: left;
       padding-left: 40px;
       padding-right: 40px;
@@ -156,9 +157,6 @@
           d.incident_longitude = +d.incident_longitude;
           d.incident_latitude = +d.incident_latitude;
           d.year = d.incident_date_created.substring(0, 4);
-          // if (d.incident_acres_burned == 0 || d.incident_acres_burned == "") {
-          //   d.incident_acres_burned = 1;
-          // }
 
           if (d.incident_acres_burned == 0) {
             d.incident_acres_burned = 1;
