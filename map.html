@@ -82,15 +82,6 @@
         .translate([width / 0.113, height / 0.2855])
         .scale([3000]);
 
-      let projectionWrapper = (arr) => {
-        let proj = projection(arr);
-        if (isNaN(proj[0]) || isNaN(proj[1])) {
-          return [-1, -1];
-        } else {
-          return proj;
-        }
-      };
-
       let path = d3.geoPath().projection(projection);
 
       const zoom = d3
@@ -441,7 +432,7 @@
             "transform",
             (d) =>
               "translate(" +
-              projectionWrapper([d.incident_longitude, d.incident_latitude]) +
+              projection([d.incident_longitude, d.incident_latitude]) +
               ")"
           )
           .on("mouseover", function (event, d, i) {
