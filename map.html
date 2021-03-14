@@ -33,6 +33,11 @@
       font-size:0.7em;
     }
 
+    .accumulative-info {
+      font-family: Arial;
+      width: 230px;
+    }
+
     .info {
       font-family: Arial;
       float: left;
@@ -104,7 +109,7 @@
         .append("g");
 
       let dataset, california, nevada, oregon, fires, colorScale, counties, cities;
-      let tooltip;
+      let tooltip, cumulativeInfo;
       let attributes = ["incident_acres_burned", "year"];
 
       var mapAcreToArea= false;
@@ -145,12 +150,16 @@
           .attr("d", path);
         })
 
-        fires = await d3.csv("mapdataall.csv");
+        fires = await d3.csv("calfiredata.csv");
         fires.forEach((d) => {
           d.incident_acres_burned = +d.incident_acres_burned;
           d.incident_longitude = +d.incident_longitude;
           d.incident_latitude = +d.incident_latitude;
           d.year = d.incident_date_created.substring(0, 4);
+          // if (d.incident_acres_burned == 0 || d.incident_acres_burned == "") {
+          //   d.incident_acres_burned = 1;
+          // }
+
           if (d.incident_acres_burned == 0) {
             d.incident_acres_burned = 1;
           }
@@ -172,6 +181,11 @@
               .html(
                 "<b>Incident Name</b><br>Year: <br>County: <br>Acres: "
               );
+
+        cumulativeInfo = d3
+          .select(".accumulative-info")
+          .append("div")
+          .html("<b>Cumulative Info:</b><br>Number of Fires: <br>Total Acres Burned: ");
 
         var years = d3.sort(new Set(dataset.map ( d => d.year )).values());
 
@@ -448,8 +462,6 @@
                   "Acres: " +
                   d.incident_acres_burned
               )
-              .style("left", event.pageX + 5 + "px")
-              .style("top", event.pageY - 28 + "px");
           })
           .on("mouseout", function (d, i) {
             d3.select(this).style("stroke", d =>  "transparent");
@@ -461,6 +473,14 @@
           .transition().duration(500)
           .attr("r", d => getCircleRadius(d))
           .attr("fill", d => getColor(d));
+
+        var acres = dataset.map(d => d.incident_acres_burned);
+
+        cumulativeInfo
+        .html("<b>Cumulative Info:</b><br>Number of Fires: " + 
+          dataset.length + 
+          "<br>Total Acres Burned: " + 
+          acres.reduce((a, b) => a + b, 0));
 
         if (showColors) {
           d3
@@ -597,9 +617,10 @@
     </script>
     <div class="info">
       <p class="current"></p>
+      <div class="accumulative-info"></div>
 
       <p>
-        <label for="size">Acres Burned:</label>
+        <label for="size"><b>Acres Burned:</b></label>
         <input
           type="text"
           id="size"
@@ -610,15 +631,16 @@
 
       <div id="slider-range"></div>
       <p></p>
-      <label>Select County:</label>
+      <label><b>Select County:</b></label>
       <div id="county-select"></div>
-      <p><br /></p>
 
-      <label for="year">Year:</label>
-      <div id="year-checks"></div>
+      <p>
+        <label for="year"><b>Year:</b></label>
+        <div id="year-checks"></div>
+      </p>
+      
 
-      <p><br /></p>
-      <label for="map-to-area">Map interactions:</label>
+      <label for="map-to-area"><b>Map interactions:</b></label>
       <p></p>
         <div id="acre-to-area"></div>        
       </p>
