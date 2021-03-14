@@ -359,6 +359,10 @@
 
       function drawVis(dataset) {
 
+        dataset.sort(function(x, y){
+          return d3.descending(x.incident_acres_burned, y.incident_acres_burned);
+        })
+
         if (countiesHasChanged) {
           if (showCounties) {
             counties.features.forEach((county) => {
